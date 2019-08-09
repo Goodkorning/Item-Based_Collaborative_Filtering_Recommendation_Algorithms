@@ -52,35 +52,39 @@ def cos_matrix_builder () :
 
 def k_similar_item (matrix) : ##
     k_matrix_list = []
-    for k in range(25, 201, 25) : ## modei size가 25씩 증가
-        most_similar_items = np.empty((items,k))
-        for item in most_similar_items :            
-            for row in matrix : ## cos_matrix의 가로 
-                num = 0
-                min_key = 0
-                dic = {} ## key : value = index : similarity
-                for index in range(0,items,1):
-                    if row[index] == 0 :
-                        break
-                    if num == 0 :
-                        dic[index] = row[index]
+    for k in range(25, 201, 25) : ## modei size가 25씩 증가    
+        dicList = []
+        for row in matrix : ## cos_matrix의 가로 
+            num = 0
+            min_key = 0
+            dic = {} ## key : value = index : similarity
+            for index in range(0,items,1):
+                if row[index] == 0 :
+                    continue
+                if num == 0 :
+                    dic[index] = row[index]
+                    min_key = index
+                    num+=1
+                elif num < k :
+                    dic[index] = row[index]
+                    num+=1
+                    if dic[min_key] > row[index]:
                         min_key = index
-                        num+=1
-                    elif num < k :
+                elif num == k :
+                    if row[index] < dic[min_key]:
+                        continue
+                    if row[index] > dic[min_key]:
+                        del(dic[min_key])
                         dic[index] = row[index]
-                        num+=1
-                        if dic[min_key] > row[index]:
-                            min_key = index
-                    elif num == k :
-                        if row[index] < dic[min_key]:
-                            break
-                        if row[index] > dic[min_key]:
-                            del(dic[min_key])
-                            dic[index] = row[index]
-                            sortdic = sorted(dic.items(), key=operator.itemgetter(1))
-                            min_key = sortdic[0][0]
-                for key in dic  :
-                    np.append(item, key)            
+                        sortdic = sorted(dic.items(), key=operator.itemgetter(1))
+                        min_key = sortdic[0][0]
+            dic_keys = list(dic.keys())
+            if len(dic_keys) < k:
+                while( len(dic_keys) < k) : ## not sure
+                    dic_keys.append(-1)                    
+            dicList.append(dic_keys)
+        most_similar_items = np.array(dicList)
+        np.savetxt('./{0:d}_size_similar_matrix'.format(k), most_similar_items)
         k_matrix_list.append(most_similar_items)
     return k_matrix_list 
 
