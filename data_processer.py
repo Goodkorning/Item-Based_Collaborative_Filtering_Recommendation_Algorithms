@@ -2,6 +2,7 @@
 
 import numpy as np
 import operator
+import time
 
 users = 6040
 items = 3952
@@ -51,6 +52,7 @@ def cos_matrix_builder () :
     return cos_matrix
 
 def k_similar_item (matrix) : ##
+    start_time = time.time()
     k_matrix_list = []
     for k in range(25, 201, 25) : ## modei size가 25씩 증가    
         dicList = []
@@ -84,9 +86,10 @@ def k_similar_item (matrix) : ##
                     dic_keys.append(-1)                    
             dicList.append(dic_keys)
         most_similar_items = np.array(dicList)
-        np.savetxt('./{0:d}_size_similar_matrix'.format(k), most_similar_items)
         k_matrix_list.append(most_similar_items)
+    print("---k_similar_matrix builder costs  %s seconds ---" % (time.time() - start_time))
     return k_matrix_list 
+    
 
 
 def main ():
