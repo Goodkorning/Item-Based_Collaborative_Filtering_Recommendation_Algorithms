@@ -7,19 +7,25 @@ import time
 users = 6040
 items = 3952
 
-def data_reader () : #read rating file
-    rating = "C:/dataset/ml-1m/ratings.dat"
+
+
+def data_reader_cv () :
+    rating = "./ratings.dat"
     with open(rating, 'r') as data :
         ratings = data.readlines()  ## rating is list userid :: movieid :: rating :: timestamp
-    user_item_matrix = np.zeros((6040,3952))
+    dataset = []
     for line in ratings :
         sp = line.split('::') ##parsing lines into [userid, movieid,rating, timestamp]
-        user_item_matrix[int(sp[0])-1][int(sp[1])-1] = int(sp[2])
+        dataset.append([int(sp[0]),int(sp[1]),int(sp[2])])
+    return dataset  
+    
+def uim_builder (train_set) :
+    user_item_matrix = np.zeros((6040,3952))
+    for rows in train_set :
+        user_item_matrix[rows[0]-1][rows[1]-1] = rows[2]
     return user_item_matrix
 
-uim = data_reader()
-
-def isolate_user2 (i, j) : ##list
+def isolate_user2 (i, j, uim) : ##list
     vector_i = []
     vector_j = []
     for rows in uim :
@@ -36,14 +42,15 @@ def sim_cos (v) :
         return dot(v[0], v[1])/(norm(v[0])*norm(v[1]))
     return 0
 
-def cos_matrix_builder () :
+def cos_matrix_builder (uim) :
     
     cos_matrix = np.ones((items, items))
     for i in range(0, items, 1) :
         for j in range(0, items, 1) :
             if i == j :
                 break
-            S_ij = sim_cos(isolate_user2(i,j))
+            S_ij = sim_cos(isolate_user2(i,j, uim))
+            np.around(S_ij, decimals=5)
             if (i % 100 == 0) & (j == 0) :
                 print("S_{0:d},{1:d} = {2:f}".format(i,j, S_ij))
             cos_matrix[i][j] = S_ij
@@ -51,12 +58,12 @@ def cos_matrix_builder () :
 
     return cos_matrix
 
-def k_similar_item (matrix) : ##
+def k_similar_item (cos_matrix) : ##
     start_time = time.time()
     k_matrix_list = []
     for k in range(25, 201, 25) : ## modei size가 25씩 증가    
         dicList = []
-        for row in matrix : ## cos_matrix의 가로 
+        for row in cos_matrix : ## cos_matrix의 가로 
             num = 0
             min_key = 0
             dic = {} ## key : value = index : similarity
@@ -89,13 +96,29 @@ def k_similar_item (matrix) : ##
         k_matrix_list.append(most_similar_items)
     print("---k_similar_matrix builder costs  %s seconds ---" % (time.time() - start_time))
     return k_matrix_list 
+
+
+def prediction (u,i, uim, cos_matrix, k_similar_matrix) :
+    sR = 0
+    absoluteS = 0
+    for similar_items in k_similar_matrix[i-1] :
+        if similar_items == -1 :
+            break
+        sR = sR + uim[u-1][similar_items-1]*cos_matrix[i-1][similar_items-1]
+        absoluteS = absoluteS + abs(cos_matrix[i-1][similar_items-1])
+    return np.around(sR/absoluteS, decimals = 5)
     
+def MAE (test_set) : ##test_set has same shape with uim userid::movieid::rating
+    sum = 0
+    for rows in test_set :
+        sum = abs(prediction(rows[0][1]) - rows[2])
+    return sum/len(test_set)
 
-
+'''
 def main ():
     cos_matrix = cos_matrix_builder()
     np.savetxt('./cos_sim_matrix', cos_matrix)
     
 if __name__ == '__ main()__' :
     main()
-    
+''' 
