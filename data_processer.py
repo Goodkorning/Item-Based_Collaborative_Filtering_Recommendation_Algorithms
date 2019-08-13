@@ -3,24 +3,21 @@
 import numpy as np
 import operator
 import time
+users = 943
+items = 1682
 
-users = 6040
-items = 3952
-
-
-
-def data_reader_cv () :
-    rating = "./ratings.dat"
+def data_reader_cv (str) :
+    rating = str
     with open(rating, 'r') as data :
         ratings = data.readlines()  ## rating is list userid :: movieid :: rating :: timestamp
     dataset = []
     for line in ratings :
-        sp = line.split('::') ##parsing lines into [userid, movieid,rating, timestamp]
+        sp = line.split('\t') ##parsing lines into [userid, movieid,rating, timestamp]
         dataset.append([int(sp[0]),int(sp[1]),int(sp[2])])
     return dataset  
     
 def uim_builder (train_set) :
-    user_item_matrix = np.zeros((6040,3952))
+    user_item_matrix = np.zeros((943,1682))
     for rows in train_set :
         user_item_matrix[rows[0]-1][rows[1]-1] = rows[2]
     return user_item_matrix
@@ -33,6 +30,7 @@ def isolate_user2 (i, j, uim) : ##list
             vector_i.append(rows[i-1])
             vector_j.append(rows[j-1])   
     return [np.asarray(vector_i),np.asarray(vector_j)]
+
 
 from numpy import dot
 from numpy.linalg import norm
@@ -98,27 +96,43 @@ def k_similar_item (cos_matrix) : ##
     return k_matrix_list 
 
 
-def prediction (u,i, uim, cos_matrix, k_similar_matrix) :
-    sR = 0
-    absoluteS = 0
-    for similar_items in k_similar_matrix[i-1] :
-        if similar_items == -1 :
-            break
-        sR = sR + uim[u-1][similar_items-1]*cos_matrix[i-1][similar_items-1]
-        absoluteS = absoluteS + abs(cos_matrix[i-1][similar_items-1])
-    return np.around(sR/absoluteS, decimals = 5)
+def prediction (u,i, uim, cos_matrix, k_similar_matrix) : #########################################################
+    with np.errstate(divide='warn') :
+        sR = 0
+        absoluteS = 0
+        for similar_items in k_similar_matrix[i-1] :
+            if similar_items == -1 :
+                break
+            if uim[u-1][similar_items-1] != 0 :
+                sR = sR + uim[u-1][similar_items-1]*cos_matrix[i-1][similar_items-1]
+                absoluteS = absoluteS + abs(cos_matrix[i-1][similar_items-1])
+        #print("sR : {0}    abS : {1}".format(sR, absoluteS))
+        if absoluteS != 0 :
+            return sR/absoluteS
+        elif absoluteS == 0 :
+            return 0
     
-def MAE (test_set) : ##test_set has same shape with uim userid::movieid::rating
+    
+def MAE (test_set,k_similar_matrix) : ##test_set has same shape with uim userid::movieid::rating
     sum = 0
+    N = 0
     for rows in test_set :
-        sum = abs(prediction(rows[0][1]) - rows[2])
-    return sum/len(test_set)
+        pred = prediction(rows[0],rows[1], uim, cos_matrix, k_similar_matrix)
+        
+        if pred != 0 :
+            error = abs(pred - rows[2])
+            sum = sum + error
+            N = N +1
+            ###print('error({0}) = prediction({1}) - rating({2})'.format(error, pred, rows[2]))
+    return print('sum = {0:f},  N = {1:d},    MAE={2:f}'.format(sum, N, sum/N))
 
-'''
-def main ():
-    cos_matrix = cos_matrix_builder()
-    np.savetxt('./cos_sim_matrix', cos_matrix)
-    
-if __name__ == '__ main()__' :
-    main()
-''' 
+def main () :
+    train_dir = "./u1.base"
+    test_dir = "./u1.test"
+    trainset = data_reader_cv("./u1.base")
+    testset = data_reader_cv("./u1.test")
+    uim = uim_builder(trainset)
+    cos_matrix  = cos_matrix_builder(uim)
+    k_similar_list = k_similar_item(cos_matrix)
+    MAE(testset, k_similar_list[4])
+
